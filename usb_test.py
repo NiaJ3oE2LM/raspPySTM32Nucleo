@@ -50,6 +50,7 @@ if __name__ == '__main__':
     while True:
         ser.flushInput()
         in_data = str(ser.readline()).strip("b'").split()  # cancellare lettere di conversione da byte a str
-        in_data.pop()                                      #l'ultimo elemnto è \n
+        in_data.pop()                                      # l'ultimo elemnto è \n
+        print(in_data)                                     # log
         with open('{}.csv'.format(file_name), mode='a') as data_file:
             print(','.join(in_data), file=data_file)
