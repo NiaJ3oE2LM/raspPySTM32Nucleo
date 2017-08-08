@@ -5,26 +5,38 @@ to download data csv from Raspberry use wget and ftp
 
 ## sync code from local network git repository
 + clone project directory:
-git clone userName@userIp:path/to/git/folder
+
+'git clone userName@userIp:path/to/git/folder'
+
 + set up local remote:
-git remote rm origin
-git remote add origin userName@userIp:path/to/git/folder
+
+'git remote rm origin'
+
+'git remote add origin userName@userIp:path/to/git/folder'
+
 + set brach to syncronize:
-git branch --set-upstream-to=origin/master
+
+'git branch --set-upstream-to=origin/master'
+
 + sync:
-git pull
+
+'git pull'
 
 ### note
 user password will be required on git-pull
 
 ## download data from Raspberry: wget + ftp
 from PC:
-+ cd folder/to/save/data
-+ wget -r --user="userName" --password="userPassword" -nH  --cut-dirs=1 ftp://userIp/path/to/data/folder/in/Raspberry
++ 'cd folder/to/save/data'
++ 'wget -r --user="userName" --password="userPassword" -nH  --cut-dirs=1 ftp://userIp/path/to/data/folder/in/Raspberry'
 
 ### note
-+ -r recursive
++ '-r '
+
+recursive
 + to remember pwd when log in with "userName" on Raspberry
 example: /home/pi
-+ -nH --cut-dirs=1 avoid downloading folder structure from Raspberry
++ '-nH --cut-dirs=1 '
+
+avoid downloading folder structure from Raspberry
 
