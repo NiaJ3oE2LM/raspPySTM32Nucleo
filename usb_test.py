@@ -95,7 +95,7 @@ def nuova_misura_run(self):
         # controlla problemi di /
         folder, descr = ans_list[0].strip('/'), ans_list[1]
         # memorizza ultime preferenze
-        last_folder , last_description = folder, description
+        last_folder , last_description = folder, descr
 
         # todo sistemare date time corretto
         filename = str(datetime.datetime.now()).split('.')[0].split()
