@@ -1,5 +1,5 @@
 import serial.tools.list_ports
-import serial, datetime, sys, types
+import serial, datetime, sys, types, os, time
 
 """interfaccia di comunicazione Raspberry NucleoSTM
 
@@ -44,10 +44,14 @@ nuova_misura = menu_item(name='nuova misura',
                          info='avvio nuova misura',
                          opts={'u': 'annulla', 's': 'inizia registrazione'})
 
+esci = menu_item(name='esci', info='')
 
 def sampling_rate_run(self):
     global sampling_rate_value
+    # show info
+    os.system('clear')
     print("\n{}\n{}".format(self.name.upper(), self.info))
+
     sampling_rate_value = int(input("attuale: {}.\tNuovo: ".format(sampling_rate_value)))
 
     return menu()
@@ -55,6 +59,8 @@ def sampling_rate_run(self):
 
 def seleziona_strumenti_run(self):
     global mem_index
+    # show info
+    os.system('clear')
     print("\n{}\n{}".format(self.name.upper(), self.info))
 
     res = []  # array STRING risposte accettabili
@@ -89,10 +95,15 @@ def seleziona_strumenti_run(self):
 
     selezionati_str = ', '.join([strumenti[i] for i in mem_index]) # cosa strana ma funziona
     print("strumenti selezionati: {}".format(selezionati_str))
+
+    # wait 2 sec
+    time.sleep(2)
     return menu()
 
 
 def nuova_misura_run(self):
+    # show info
+    os.system('clear')
     print("\n{}\n{}".format(self.name.upper(), self.info))
     # print info strumenti
     strumenti_str = ', '.join([strumenti[i] for i in mem_index])
@@ -100,11 +111,11 @@ def nuova_misura_run(self):
 
     # crea il file csv
     filename = str(datetime.datetime.now()).split('.')[0].split()
-    filename = '_'.join(filename)
-    with open('{}.csv'.format(filename), mode='w') as file:
+    filename = '_'.join(filename[::-1])
+    with open('data/{}.csv'.format(filename), mode='w') as file:
         print(strumenti_str, file=file)
 
-    print("{}.csv creato correttamente".format(filename))
+    print("data/{}.csv creato correttamente".format(filename))
 
     # print opts
     for opt in self.opts:
@@ -119,16 +130,21 @@ def nuova_misura_run(self):
         # registra()
 
 
+def esci_run(self):
+    # todo print log della sessione
+    return exit(0)
 
 # BIND custom function to objects
 sampling_rate.run = types.MethodType(sampling_rate_run, sampling_rate)
 seleziona_strumenti.run = types.MethodType(seleziona_strumenti_run, seleziona_strumenti)
 nuova_misura.run = types.MethodType(nuova_misura_run, nuova_misura)
+esci.run = types.MethodType(esci_run, esci)
 
 app = {
     '1': sampling_rate,
     '2': seleziona_strumenti,
-    '3': nuova_misura
+    '3': nuova_misura,
+    '4': esci
 }
 
 
@@ -138,7 +154,8 @@ def menu():
         app : dizionario da visualizzare
     """
 
-    # visualizza menu
+    # pulisci schermo e visualizza menu
+    os.system('clear')
     print('\nraspinucleo'.upper())
     for opt in sorted(app):
         print('{} - {}'.format(opt, app[opt].name))
@@ -242,6 +259,7 @@ if __name__ == '__main__':
     #
     #     # imposta timerout per vedere quando la nuclo non manda più nulla
     update_strumenti()
+    # os.system('export TERM=xterm')  # errore TERM variable
     menu()
 
 """SCHEMA NUCLEO
