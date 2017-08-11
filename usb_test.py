@@ -1,5 +1,6 @@
-import serial.tools.list_ports
-import serial, datetime, sys, types, os, time
+import serial.tools.list_ports, serial
+import datetime, sys, types, os, time
+import dialog
 
 """interfaccia di comunicazione Raspberry NucleoSTM
 
@@ -26,10 +27,11 @@ class menu_item:
         self.opts = opts
 
 # todo fare una classe strumento
+# todo archivio file binario con dati strumenti
 
 # GLOBAL VARIABLES
 sampling_rate_value = 10
-mem_index = range(2)
+mem_index = []
 strumenti = []
 
 # sampling rate  menu
@@ -37,136 +39,137 @@ sampling_rate = menu_item(name='sampling rate',
                           info="numero di misure per secondo.")
 # seleziona strumenti menu
 seleziona_strumenti = menu_item(name='seleziona strumenti',
-                                info="scrivere gli indici degli strumenti da registrare separati da uno spazio",
+                                info="spostare a destra gli strumenti da utilizzare. viene mostrata la configurazione attuale",
                                 opts={'u': 'annulla', 'a': 'tutti'})
 # nuova misura
 nuova_misura = menu_item(name='nuova misura',
-                         info='avvio nuova misura',
+                         info='modificare i campi opportuni, premere ok per iniziare la registrazione',
                          opts={'u': 'annulla', 's': 'inizia registrazione'})
 
 esci = menu_item(name='esci', info='')
 
+
 def sampling_rate_run(self):
     global sampling_rate_value
-    # show info
-    os.system('clear')
-    print("\n{}\n{}".format(self.name.upper(), self.info))
-
-    sampling_rate_value = int(input("attuale: {}.\tNuovo: ".format(sampling_rate_value)))
+    code, ans_str = d.inputbox(title=self.name,
+                               text=self.info+"\nattuale: {}.\tNuovo:".format(sampling_rate_value))
+    if code == d.OK:
+        sampling_rate_value = int(ans_str)
 
     return menu()
 
 
 def seleziona_strumenti_run(self):
     global mem_index
-    # show info
-    os.system('clear')
-    print("\n{}\n{}".format(self.name.upper(), self.info))
-
-    res = []  # array STRING risposte accettabili
-
-    # todo chiama la nucleo per ricevere le info sugli strumenti
-
     update_strumenti()
+
+    # visuallizza configurazione corrente
+    item_list = []
     for i in range(len(strumenti)):
-        print("{} - {}".format(i, strumenti[i]))
-        res.append(str(i))  # solo qui perchè quando scrivi mem_index non ti serve opts
-
-    # print opts
-    for opt in self.opts:
-        print("{} - {}".format(opt, self.opts[opt]))
+        if i in mem_index:
+            item_list.append((str(i), strumenti[i], True))
+        else:
+            item_list.append((str(i), strumenti[i], False))
 
 
-    # todo sistemare potenziali errori
-    ans = input("+\tseleziona un'opzione: ")
+    code, ans = d.buildlist(title=self.name,
+                            text=self.info,
+                            items=item_list)
+    if code == d.OK:
+        mem_index = list(int(ans[i]) for i in range(len(ans)))
 
-    if ans == 'u':
-        menu()
-    elif ans == 'a':
-        mem_index = range(len(strumenti))  # se inizializzi già come tutti, questo non serve
-        print('selezionati tutti gli strumenti')
-        return menu()
-    elif ans != 'a':
-        mem_index = []
-        # usa la stringa come array di indici, converti in int
-        for index in ans.split():
-            if index in res:
-                mem_index.append(int(index))
-
-    selezionati_str = ', '.join([strumenti[i] for i in mem_index]) # cosa strana ma funziona
-    print("strumenti selezionati: {}".format(selezionati_str))
-
-    # wait 2 sec
-    time.sleep(2)
     return menu()
 
 
 def nuova_misura_run(self):
-    # show info
-    os.system('clear')
-    print("\n{}\n{}".format(self.name.upper(), self.info))
-    # print info strumenti
-    strumenti_str = ', '.join([strumenti[i] for i in mem_index])
-    print("strumenti selezionati: {}".format(strumenti_str))
-
-    # crea il file csv
-    filename = str(datetime.datetime.now()).split('.')[0].split()
-    filename = '_'.join(filename[::-1])
-    with open('data/{}.csv'.format(filename), mode='w') as file:
-        print(strumenti_str, file=file)
-
-    print("data/{}.csv creato correttamente".format(filename))
-
-    # print opts
-    for opt in self.opts:
-        print("{} - {}".format(opt, self.opts[opt]))
-
-    ans = scegli(self.opts)
-
-    if ans == 'u':
-        # rimuovi il file sbagliato
-        os.system('rm data/{}.csv'.format(filename))
+    # # show info
+    # os.system('clear')
+    # print("\n{}\n{}".format(self.name.upper(), self.info))
+    # # print info strumenti
+    # strumenti_str = ', '.join([strumenti[i] for i in mem_index])
+    # print("strumenti selezionati: {}".format(strumenti_str))
+    #
+    # # crea il file csv
+    # # todo sistemare date time corretto
+    # filename = str(datetime.datetime.now()).split('.')[0].split()
+    # filename = '_'.join(filename[::-1])
+    # with open('data/{}.csv'.format(filename), mode='w') as file:
+    #     print(strumenti_str, file=file)
+    #
+    # print("data/{}.csv creato correttamente".format(filename))
+    #
+    # # print opts
+    # for opt in self.opts:
+    #     print("{} - {}".format(opt, self.opts[opt]))
+    #
+    # ans = scegli(self.opts)
+    #
+    # if ans == 'u':
+    #     # rimuovi il file sbagliato
+    #     os.system('rm data/{}.csv'.format(filename))
+    #     return menu()
+    # else:
+    #     print('inizio registrazione')
+    #     # registra()
+    # ----------------- fai scegliere dove memerizzare il file
+    # DOC (label, yl, xl, item, yi, xi, field_length, input_length),(row and column numbers starting from 1).
+    element_list= [('folder: data/', 1, 1, '', 1, 2, 30, 70),
+                   ('description', 2, 1, '', 2, 2, 30, 70)]
+    code, ans_list = d.form(title=self.name,
+                            text=self.info,
+                            elements=element_list)
+    if code == d.CANCEL:
         return menu()
     else:
-        print('inizio registrazione')
-        # registra()
+        # controlla problemi di /
+        folder, descr = ans_list[0].strip('/'), ans_list[1]
+
+        # todo sistemare date time corretto
+        filename = str(datetime.datetime.now()).split('.')[0].split()
+        filename = '_'.join(filename[::-1])
+
+        # controlla esistenza cartella
+        if folder in os.listdir('data/'):
+            folder = 'data/' + folder
+        else:
+            folder = 'data/' + folder
+            os.mkdir(folder)
+
+        #crea il file csv
+        with open('{}/{}.csv'.format(folder, filename), mode='w') as file:
+            strumenti_str = ', '.join([strumenti[i] for i in mem_index])
+            print(descr, file=file)
+            print(strumenti_str, file=file)
+
+        d.infobox(title='WARNING',
+                  text='starting ')
 
 
-def esci_run(self):
-    # todo print log della sessione
-    return exit(0)
 
 # BIND custom function to objects
 sampling_rate.run = types.MethodType(sampling_rate_run, sampling_rate)
 seleziona_strumenti.run = types.MethodType(seleziona_strumenti_run, seleziona_strumenti)
 nuova_misura.run = types.MethodType(nuova_misura_run, nuova_misura)
-esci.run = types.MethodType(esci_run, esci)
 
 app = {
     '1': sampling_rate,
     '2': seleziona_strumenti,
-    '3': nuova_misura,
-    '4': esci
+    '3': nuova_misura
 }
 
 
 def menu():
-    """visualizza un dizionario come menu
-    Args:
-        app : dizionario da visualizzare
-    """
-
-    # pulisci schermo e visualizza menu
-    os.system('clear')
-    print('\nraspinucleo'.upper())
+    choice_list = []
     for opt in sorted(app):
-        print('{} - {}'.format(opt, app[opt].name))
-
-    # attendi risposta
-    ans = scegli(app)
-
-    # esegui funzione caratteristica
-    return app[ans].run()
+        choice_list.append((opt, app[opt].name))
+    code, ans = d.menu(title='RASPINUCLEO',
+                       text='interfaccia di comunicazione raspi nucleo',
+                       choices=choice_list)
+    if code == d.OK:
+        return app[ans].run()
+    else:
+        # todo session log print
+        return exit(0)
 
 
 def init_csv(nucleo_serial, mem_all_vars = True, sampling_rate=5):
@@ -213,7 +216,7 @@ def init_csv(nucleo_serial, mem_all_vars = True, sampling_rate=5):
 def update_strumenti():
     global strumenti
     strumenti = ['str1', 'str2', 'str3']
-    mem_index = range(len(strumenti))
+
     return
 
 
@@ -250,6 +253,8 @@ def read(nucleo_serial):
 # nucleo_port = serial.tools.list_ports.comports()[0][0]
 # ser = serial.Serial(port=nucleo_port, baudrate=115200)
 #
+
+d = dialog.Dialog(autowidgetsize=True)
 
 if __name__ == '__main__':
 
