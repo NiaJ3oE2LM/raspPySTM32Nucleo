@@ -27,7 +27,6 @@ class menu_item:
         self.opts = opts
 
 # todo fare una classe strumento
-# todo archivio file binario con dati strumenti
 
 # GLOBAL VARIABLES
 sampling_rate_value = 10
@@ -96,7 +95,7 @@ def nuova_misura_run(self):
         # controlla problemi di /
         folder, descr = ans_list[0].strip('/'), ans_list[1]
         # memorizza ultime preferenze
-        last_folder , last_description = folder, last_description
+        last_folder , last_description = folder, description
 
         # todo sistemare date time corretto
         filename = str(datetime.datetime.now()).split('.')[0].split()
@@ -179,7 +178,7 @@ def tail():
     code = d.tailbox(title=file_name,
                      filepath=file_name)
     if code:
-        # stop recording
+        # stop recording, la nucleo rileva l'interrupt in Rx, puoi scrivere qualsiasi cosa
         ser.write('1'.encode('utf-8'))
         return
 
