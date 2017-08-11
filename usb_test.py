@@ -51,6 +51,14 @@ esci = menu_item(name='esci', info='')
 
 
 def sampling_rate_run(self):
+    """
+    funzione bind oggetto sampling_rate. chiede di reimpostare il parametro sampling rate
+
+    :param self:
+    :return:
+    """
+
+    # todo aggiornare il parametro via serial sulla nucleo
     global sampling_rate_value
     code, ans_str = d.inputbox(title=self.name,
                                text=self.info+"\nattuale: {}.\tNuovo:".format(sampling_rate_value))
@@ -61,6 +69,14 @@ def sampling_rate_run(self):
 
 
 def seleziona_strumenti_run(self):
+    """
+    bind oggetto seleziona_strumenti. imposta la variabile mem_index con gli  indici
+    degli strumenti da memorizzare secondo l'ordine in cui comunica la nucleo
+    :param self:
+    :return:
+    """
+
+    # todo sistemare upgrade_struenti
     global mem_index
     update_strumenti()
 
@@ -82,6 +98,11 @@ def seleziona_strumenti_run(self):
 
 
 def nuova_misura_run(self):
+    """
+    bind oggetto nuova_misura. crea il nuovo file csv specificando la cartella e la descrizione
+    :param self:
+    :return:
+    """
     global file_name, last_folder, last_description
     # DOC (label, yl, xl, item, yi, xi, field_length, input_length),(row and column numbers starting from 1).
     element_list= [('folder: data/', 1, 1, last_folder, 1, 2, 30, 70),
@@ -97,7 +118,7 @@ def nuova_misura_run(self):
         # memorizza ultime preferenze
         last_folder , last_description = folder, descr
 
-        # todo sistemare date time corretto
+        # corretto cos', il rasp ha una timezone diversa
         filename = str(datetime.datetime.now()).split('.')[0].split()
         filename = '_'.join(filename[::-1])
 
@@ -131,6 +152,10 @@ app = {
 
 
 def menu():
+    """
+    visualizza il menu principale
+    :return:
+    """
     choice_list = []
     for opt in sorted(app):
         choice_list.append((opt, app[opt].name))
@@ -145,6 +170,12 @@ def menu():
 
 
 def update_strumenti():
+    """
+    aggiorn ala lista degli strumenti dispobili
+    :return:
+    """
+
+    # todo creare database strumenti e memorizzare le chiavi di rif. per acceder alle specifiche dello stru
     global strumenti
     strumenti = ['str1', 'str2', 'str3']
 
@@ -152,6 +183,10 @@ def update_strumenti():
 
 
 def record():
+    """
+    avvia la registrazione sulla nucleo esalva i valori sul file csv
+    :return:
+    """
     # start recording
     ser.write('1'.encode('utf-8'))
 
@@ -175,6 +210,10 @@ def record():
 
 
 def tail():
+    """
+    visualizza il contenuto del file csv mentre viene popolato
+    :return:
+    """
     code = d.tailbox(title=file_name,
                      filepath=file_name)
     if code:
@@ -184,6 +223,10 @@ def tail():
 
 
 def logout():
+    """
+    memorizza le variabili utente per il prossimo avvio
+    :return:
+    """
 
     with shelve.open('last_session', flag='w') as db:
         db['index'] = mem_index
@@ -193,6 +236,10 @@ def logout():
 
 
 def load_last():
+    """
+    carica le variabili utente dal database
+    :return:
+    """
     global last_description, last_folder, mem_index, sampling_rate_value
     with shelve.open('last_session', flag='r') as db:
         mem_index = db['index']
@@ -218,7 +265,7 @@ def read(nucleo_serial):
         return []
 
 
-"""
+""" AVVIO SERIALE NUCLEO
 suppogo che ci sia solo la nucleo attaccata al raspberry quindi
 prendo la prima usb disponibile nella lista
 """

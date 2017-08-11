@@ -38,5 +38,6 @@ LED BLINK, si ferma quando riceve la risposta '1' dalla funzione init_csv()
 # TODOS
 + print session log on menu cancel answer
 + save session variable to cinary file to load on startup ... last folder, last insrtruments..
++ archivio strumenti
 + 
 
