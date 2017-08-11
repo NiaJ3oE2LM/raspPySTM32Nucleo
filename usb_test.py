@@ -124,6 +124,8 @@ def nuova_misura_run(self):
     ans = scegli(self.opts)
 
     if ans == 'u':
+        # rimuovi il file sbagliato
+        os.system('rm data/{}.csv'.format(filename))
         return menu()
     else:
         print('inizio registrazione')
