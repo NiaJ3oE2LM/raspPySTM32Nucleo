@@ -1,5 +1,5 @@
 import serial.tools.list_ports, serial
-import datetime, sys, types, os, time
+import datetime, sys, types, os, time, threading, shelve
 import dialog
 
 """interfaccia di comunicazione Raspberry NucleoSTM
@@ -33,6 +33,8 @@ class menu_item:
 sampling_rate_value = 10
 mem_index = []
 strumenti = []
+file_name, last_description, last_folder = "", '', ''
+
 
 # sampling rate  menu
 sampling_rate = menu_item(name='sampling rate',
@@ -71,7 +73,6 @@ def seleziona_strumenti_run(self):
         else:
             item_list.append((str(i), strumenti[i], False))
 
-
     code, ans = d.buildlist(title=self.name,
                             text=self.info,
                             items=item_list)
@@ -82,39 +83,10 @@ def seleziona_strumenti_run(self):
 
 
 def nuova_misura_run(self):
-    # # show info
-    # os.system('clear')
-    # print("\n{}\n{}".format(self.name.upper(), self.info))
-    # # print info strumenti
-    # strumenti_str = ', '.join([strumenti[i] for i in mem_index])
-    # print("strumenti selezionati: {}".format(strumenti_str))
-    #
-    # # crea il file csv
-    # # todo sistemare date time corretto
-    # filename = str(datetime.datetime.now()).split('.')[0].split()
-    # filename = '_'.join(filename[::-1])
-    # with open('data/{}.csv'.format(filename), mode='w') as file:
-    #     print(strumenti_str, file=file)
-    #
-    # print("data/{}.csv creato correttamente".format(filename))
-    #
-    # # print opts
-    # for opt in self.opts:
-    #     print("{} - {}".format(opt, self.opts[opt]))
-    #
-    # ans = scegli(self.opts)
-    #
-    # if ans == 'u':
-    #     # rimuovi il file sbagliato
-    #     os.system('rm data/{}.csv'.format(filename))
-    #     return menu()
-    # else:
-    #     print('inizio registrazione')
-    #     # registra()
-    # ----------------- fai scegliere dove memerizzare il file
+    global file_name, last_folder, last_description
     # DOC (label, yl, xl, item, yi, xi, field_length, input_length),(row and column numbers starting from 1).
-    element_list= [('folder: data/', 1, 1, '', 1, 2, 30, 70),
-                   ('description', 2, 1, '', 2, 2, 30, 70)]
+    element_list= [('folder: data/', 1, 1, last_folder, 1, 2, 30, 70),
+                   ('description', 2, 1, last_description, 2, 2, 30, 70)]
     code, ans_list = d.form(title=self.name,
                             text=self.info,
                             elements=element_list)
@@ -123,6 +95,8 @@ def nuova_misura_run(self):
     else:
         # controlla problemi di /
         folder, descr = ans_list[0].strip('/'), ans_list[1]
+        # memorizza ultime preferenze
+        last_folder , last_description = folder, last_description
 
         # todo sistemare date time corretto
         filename = str(datetime.datetime.now()).split('.')[0].split()
@@ -135,16 +109,15 @@ def nuova_misura_run(self):
             folder = 'data/' + folder
             os.mkdir(folder)
 
-        #crea il file csv
-        with open('{}/{}.csv'.format(folder, filename), mode='w') as file:
+        # crea il file csv e stampa intestazione
+        file_name = '{}/{}.csv'.format(folder, filename)
+        with open(file_name, mode='w') as file:
             strumenti_str = ', '.join([strumenti[i] for i in mem_index])
             print(descr, file=file)
+            print('sample rate:' + str(sampling_rate_value), file=file)
             print(strumenti_str, file=file)
 
-        d.infobox(title='WARNING',
-                  text='starting ')
-
-
+        return record()
 
 # BIND custom function to objects
 sampling_rate.run = types.MethodType(sampling_rate_run, sampling_rate)
@@ -168,49 +141,8 @@ def menu():
     if code == d.OK:
         return app[ans].run()
     else:
-        # todo session log print
+        logout()
         return exit(0)
-
-
-def init_csv(nucleo_serial, mem_all_vars = True, sampling_rate=5):
-    """inizializza file csv, seleziona variabili da memorizzare e ritona filename e array di indici
-
-    ogni file viene denominato con un timestamp e nella prima
-    riga si indicano i nomi dei dati per colonna
-    """
-
-    # filename
-    filename = str(datetime.datetime.now()).split('.')[0].split()
-    filename = '_'.join(filename)
-
-    """variabili da memorizzare:
-     mem_index contiene TUTTI gli indici delle variabili
-    da memorizzare nell'ordine in cui la nucleo le manderà
-    """
-    vars_name = read(nucleo_serial)
-    mem_index = range(len(vars_name))
-    if not mem_all_vars:
-        # print vars and instructions, mach indexes
-        print('available vars:{}'.format(vars_name))
-        index_str = input("type 'a' to select all, type index number separated by splace to select individually")
-        if index_str != 'a':
-            mem_index = []
-            # usa la stringa come array di indici, converti in int
-            for index in index_str.split():
-                mem_index.append(int(index))
-
-    # crea il file
-    with open('{}.csv'.format(filename), mode='a') as file:
-        first_row =','.join(vars_name[mem_index])  # funziona come matlab?
-        print(first_row, file=file)
-
-    #  TODO info sensori errori e tipo
-    # TODO  impostare sampling rate
-
-    # la converma alla nucleo contiene il sampling rate per l'esperimento
-    print(sampling_rate, file=nucleo_serial)
-
-    return filename, mem_index
 
 
 def update_strumenti():
@@ -220,12 +152,54 @@ def update_strumenti():
     return
 
 
-def scegli(available):
-    ans = ''
-    while ans not in available:
-        ans = input("+\tseleziona un'opzione: ")
+def record():
+    # start recording
+    ser.write('1'.encode('utf-8'))
 
-    return ans
+    threading.Thread(target=tail).start()
+
+    while True:
+        in_data = read(ser)  # non c'è bisogno di convertire in float o int
+        # se timeout viene ritornata una lista vuota, quindi esci
+        if not in_data:
+            break
+
+        sel_data = (in_data[i] for i in mem_index)  # seleziona solo quelli da memorizzare
+        with open(file_name, mode='a') as file:
+            print(','.join(sel_data), file=file)
+
+
+    d.infobox(title='WARNING',
+              text='recording has stopped')
+    time.sleep(2)
+    return menu()
+
+
+def tail():
+    code = d.tailbox(title=file_name,
+                     filepath=file_name)
+    if code:
+        # stop recording
+        ser.write('1'.encode('utf-8'))
+        return
+
+
+def logout():
+
+    with shelve.open('last_session', flag='w') as db:
+        db['index'] = mem_index
+        db['rate'] = sampling_rate_value
+        db['folder'] = last_folder
+        db['description'] = last_description
+
+
+def load_last():
+    global last_description, last_folder, mem_index, sampling_rate_value
+    with shelve.open('last_session', flag='r') as db:
+        mem_index = db['index']
+        last_folder = db['folder']
+        last_description = db['description']
+        sampling_rate_value = db['rate']
 
 
 def read(nucleo_serial):
@@ -234,44 +208,30 @@ def read(nucleo_serial):
     :param nucleo_serial: serial object Nucleo
     :return: 
     """
-    if nucleo_serial.isreadable():
+    if nucleo_serial.readable():
         nucleo_serial.flushInput()
         data_list = str(ser.readline()).strip("b'").split()  # cancellare lettere di conversione da byte a str
-        data_list.pop()                                      # l'ultimo elemnto è \n
-        print(data_list)                                     # log
+        if data_list:
+            data_list.pop()                                      # l'ultimo elemnto è \n
+        # print(data_list)                                     # log
         return data_list
     else:
-        print('serial is not readable! check connection!')
         return []
 
 
-# """
-# suppogo che ci sia solo la nucleo attaccata al raspberry quindi
-# prendo la prima usb disponibile nella lista
-# """
-#
-# nucleo_port = serial.tools.list_ports.comports()[0][0]
-# ser = serial.Serial(port=nucleo_port, baudrate=115200)
-#
+"""
+suppogo che ci sia solo la nucleo attaccata al raspberry quindi
+prendo la prima usb disponibile nella lista
+"""
+
+nucleo_port = serial.tools.list_ports.comports()[0][0]
+ser = serial.Serial(port=nucleo_port, baudrate=115200, timeout=1)
 
 d = dialog.Dialog(autowidgetsize=True)
+# carico database preferenze
+load_last()
 
 if __name__ == '__main__':
 
-    # while True:
-    #     in_data = read(ser)  # non c'è bisogno do convertire in float o int
-    #     in_data = in_data[vars_index]  # seleziona solo quelli da memorizzare
-    #     with open('{}.csv'.format(file_name), mode='a') as data_file:
-    #         print(','.join(in_data), file=data_file)
-    #
-    #     # imposta timerout per vedere quando la nuclo non manda più nulla
     update_strumenti()
-    # os.system('export TERM=xterm')  # errore TERM variable
     menu()
-
-"""SCHEMA NUCLEO
-1 volta user button: continua mandare la stringa con tutti i sensori nell'ordine in cui poi manderà i dati
-LED BLINK, si ferma quando riceve la risposta '1' dalla funzione init_csv()
-
-2 volta user button, LED FISSO: legge i sensori manda tutti i dati alla rasp
-"""
