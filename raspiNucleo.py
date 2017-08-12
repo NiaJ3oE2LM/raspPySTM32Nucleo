@@ -31,7 +31,8 @@ class menu_item:
 # GLOBAL VARIABLES
 sampling_rate_value = 1
 mem_index = []
-strumenti = []
+available_instruments = []
+instruments_db = []
 file_name, last_description, last_folder = "", '', ''
 
 
@@ -81,11 +82,12 @@ def seleziona_strumenti_run(self):
 
     # visuallizza configurazione corrente
     item_list = []
-    for i in range(len(strumenti)):
+    for i in range(len(available_instruments)):
         if i in mem_index:
-            item_list.append((str(i), strumenti[i], True))
+            item_list.append((str(i), instruments_db[int(available_instruments[0])][0], True))
         else:
-            item_list.append((str(i), strumenti[i], False))
+            item_list.append((str(i), instruments_db[int(available_instruments[i])][0], False))
+
 
     code, ans = d.buildlist(title=self.name,
                             text=self.info,
@@ -129,7 +131,7 @@ def nuova_misura_run(self):
         # crea il file csv e stampa intestazione
         file_name = '{}/{}.csv'.format(folder, filename)
         with open(file_name, mode='w') as file:
-            strumenti_str = ', '.join([strumenti[i] for i in mem_index])
+            strumenti_str = ', '.join([available_instruments[i] for i in mem_index])
             print(descr, file=file)
             print('sample rate:' + str(sampling_rate_value), file=file)
             print(strumenti_str, file=file)
@@ -170,27 +172,17 @@ def update_strumenti():
     aggiorn ala lista degli strumenti dispobili
     :return:
     """
-    global strumenti
+    global available_instruments
 
     # start instrument mode with 'i'
     write('i')
-    strumenti = read(ser)
-    print(strumenti)
+    available_instruments = read(ser)
 
 
 def update_sampling_rate():
     """ comunica alla nucleo il valore di sampling_rate_value"""
     str_LF = str(sampling_rate_value)+'\n'
     ser.write(str_LF.encode('utf-8'))
-
-
-def write(string):
-    """scrive il valore in seriale aggiunggendo \n correttamente"""
-    if ser.writable():
-        string += '\n'
-        ser.write(string.encode('utf-8'))
-    else:
-        print('ser not writable')
 
 
 def start_stop_record():
@@ -247,7 +239,7 @@ def logout():
 
 def start_load():
     """
-    carica le variabili utente dal database
+    carica le variabili utente dal database e gli strumenti dal file instruments.csv
     :return:
     """
     global last_description, last_folder, mem_index, sampling_rate_value
@@ -258,6 +250,19 @@ def start_load():
         sampling_rate_value = db['rate']
 
     update_sampling_rate()  # chiamare dopo aver caricato il valore
+
+    with open('instruments.csv', mode='r') as file:
+        for line in file:
+            instruments_db.append(line.split(','))
+
+
+def write(string):
+    """scrive il valore in seriale aggiunggendo \n correttamente"""
+    if ser.writable():
+        string += '\n'
+        ser.write(string.encode('utf-8'))
+    else:
+        print('ser not writable')
 
 
 def read(nucleo_serial):
@@ -292,5 +297,6 @@ d = dialog.Dialog(autowidgetsize=True)
 
 if __name__ == '__main__':
     start_load()
+    print()
     while True:
         menu()
