@@ -125,13 +125,15 @@ def nuova_misura_run(self):
         filename = '_'.join(filename[::-1])
 
         # controlla esistenza cartella
-        if folder in os.listdir('data/'):
+        if not folder:
+            folder = 'data'  # senza / [1]
+        elif folder in os.listdir('data/'):
             folder = 'data/' + folder
         else:
             folder = 'data/' + folder
             os.mkdir(folder)
 
-        # crea il file csv e stampa intestazione
+        # crea il file csv e stampa intestazione [1]
         file_name = '{}/{}.csv'.format(folder, filename)
         with open(file_name, mode='w') as file:
             print(descr, file=file)
