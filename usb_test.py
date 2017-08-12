@@ -29,7 +29,7 @@ class menu_item:
 # todo fare una classe strumento
 
 # GLOBAL VARIABLES
-sampling_rate_value = 10
+sampling_rate_value = 1
 mem_index = []
 strumenti = []
 file_name, last_description, last_folder = "", '', ''
@@ -62,10 +62,9 @@ def sampling_rate_run(self):
     global sampling_rate_value
     code, ans_str = d.inputbox(title=self.name,
                                text=self.info+"\nattuale: {}.\tNuovo:".format(sampling_rate_value))
-    if code == d.OK:
+    if code == d.OK and ans_str:
         sampling_rate_value = int(ans_str)
-
-    return menu()
+        update_sampling_rate()
 
 
 def seleziona_strumenti_run(self):
@@ -94,8 +93,6 @@ def seleziona_strumenti_run(self):
     if code == d.OK:
         mem_index = list(int(ans[i]) for i in range(len(ans)))
 
-    return menu()
-
 
 def nuova_misura_run(self):
     """
@@ -116,7 +113,7 @@ def nuova_misura_run(self):
         # controlla problemi di /
         folder, descr = ans_list[0].strip('/'), ans_list[1]
         # memorizza ultime preferenze
-        last_folder , last_description = folder, descr
+        last_folder, last_description = folder, descr
 
         # corretto cos', il rasp ha una timezone diversa
         filename = str(datetime.datetime.now()).split('.')[0].split()
@@ -166,7 +163,6 @@ def menu():
         return app[ans].run()
     else:
         logout()
-        return exit(0)
 
 
 def update_strumenti():
@@ -174,22 +170,39 @@ def update_strumenti():
     aggiorn ala lista degli strumenti dispobili
     :return:
     """
-
-    # todo creare database strumenti e memorizzare le chiavi di rif. per acceder alle specifiche dello stru
     global strumenti
-    strumenti = ['str1', 'str2', 'str3']
 
-    return
+    # start instrument mode with 'i'
+    write('i')
+    strumenti = read(ser)
+    print(strumenti)
+
+
+def update_sampling_rate():
+    """ comunica alla nucleo il valore di sampling_rate_value"""
+    str_LF = str(sampling_rate_value)+'\n'
+    ser.write(str_LF.encode('utf-8'))
+
+
+def write(string):
+    """scrive il valore in seriale aggiunggendo \n correttamente"""
+    if ser.writable():
+        string += '\n'
+        ser.write(string.encode('utf-8'))
+    else:
+        print('ser not writable')
+
+
+def start_stop_record():
+    """send 'r' to nucleo and nucleo should stop sending data"""
+    write('r')
 
 
 def record():
-    """
-    avvia la registrazione sulla nucleo esalva i valori sul file csv
+    """avvia la registrazione sulla nucleo esalva i valori sul file csv
     :return:
     """
-    # start recording
-    ser.write('1'.encode('utf-8'))
-
+    start_stop_record()
     threading.Thread(target=tail).start()
 
     while True:
@@ -202,11 +215,9 @@ def record():
         with open(file_name, mode='a') as file:
             print(','.join(sel_data), file=file)
 
-
     d.infobox(title='WARNING',
               text='recording has stopped')
-    time.sleep(2)
-    return menu()
+    time.sleep(1)
 
 
 def tail():
@@ -214,12 +225,9 @@ def tail():
     visualizza il contenuto del file csv mentre viene popolato
     :return:
     """
-    code = d.tailbox(title=file_name,
-                     filepath=file_name)
+    code = d.msgbox(text='writing data to {}'.format(file_name))
     if code:
-        # stop recording, la nucleo rileva l'interrupt in Rx, puoi scrivere qualsiasi cosa
-        ser.write('1'.encode('utf-8'))
-        return
+        start_stop_record()
 
 
 def logout():
@@ -234,8 +242,10 @@ def logout():
         db['folder'] = last_folder
         db['description'] = last_description
 
+    return exit(0)
 
-def load_last():
+
+def start_load():
     """
     carica le variabili utente dal database
     :return:
@@ -247,12 +257,14 @@ def load_last():
         last_description = db['description']
         sampling_rate_value = db['rate']
 
+    update_sampling_rate()  # chiamare dopo aver caricato il valore
+
 
 def read(nucleo_serial):
     """read serial and return string array
     
     :param nucleo_serial: serial object Nucleo
-    :return: 
+    :return: empty array in serial is not readable
     """
     if nucleo_serial.readable():
         nucleo_serial.flushInput()
@@ -269,15 +281,16 @@ def read(nucleo_serial):
 suppogo che ci sia solo la nucleo attaccata al raspberry quindi
 prendo la prima usb disponibile nella lista
 """
+try:
+    nucleo_port = serial.tools.list_ports.comports()[0][0]
+except:
+    print("nucleo è connessa?")
+    exit(0)
 
-nucleo_port = serial.tools.list_ports.comports()[0][0]
-ser = serial.Serial(port=nucleo_port, baudrate=115200, timeout=1)
-
+ser = serial.Serial(port=nucleo_port, baudrate=115200, timeout=2)
 d = dialog.Dialog(autowidgetsize=True)
-# carico database preferenze
-load_last()
 
 if __name__ == '__main__':
-
-    update_strumenti()
-    menu()
+    start_load()
+    while True:
+        menu()
