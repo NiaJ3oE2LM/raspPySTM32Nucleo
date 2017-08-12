@@ -45,7 +45,7 @@ seleziona_strumenti = menu_item(name='seleziona strumenti',
                                 opts={'u': 'annulla', 'a': 'tutti'})
 # nuova misura
 nuova_misura = menu_item(name='nuova misura',
-                         info='modificare i campi opportuni, premere ok per iniziare la registrazione',
+                         info='premere ok per iniziare la registrazione',
                          opts={'u': 'annulla', 's': 'inizia registrazione'})
 
 esci = menu_item(name='esci', info='')
@@ -88,7 +88,6 @@ def seleziona_strumenti_run(self):
         else:
             item_list.append((str(i), instruments_db[int(available_instruments[i])][0], False))
 
-
     code, ans = d.buildlist(title=self.name,
                             text=self.info,
                             items=item_list)
@@ -104,10 +103,14 @@ def nuova_misura_run(self):
     """
     global file_name, last_folder, last_description
     # DOC (label, yl, xl, item, yi, xi, field_length, input_length),(row and column numbers starting from 1).
-    element_list= [('folder: data/', 1, 1, last_folder, 1, 2, 30, 70),
-                   ('description', 2, 1, last_description, 2, 2, 30, 70)]
+    col = max([len('folder: data/'),len('description')])+1
+    element_list= [('folder: data/', 1, 1, last_folder, 1, col, 20, 100),
+                   ('description:', 2, 1, last_description, 2, col, 20, 100)]
+    # info strumenti
+    strumenti_str = ', '.join(available_instruments[i] for i in mem_index)
+
     code, ans_list = d.form(title=self.name,
-                            text=self.info,
+                            text=(self.info+'\nSampling_rate:'+str(sampling_rate_value)+'\nStrumenti:'+strumenti_str),
                             elements=element_list)
     if code == d.CANCEL:
         return menu()
@@ -131,7 +134,6 @@ def nuova_misura_run(self):
         # crea il file csv e stampa intestazione
         file_name = '{}/{}.csv'.format(folder, filename)
         with open(file_name, mode='w') as file:
-            strumenti_str = ', '.join([available_instruments[i] for i in mem_index])
             print(descr, file=file)
             print('sample rate:' + str(sampling_rate_value), file=file)
             print(strumenti_str, file=file)
@@ -217,7 +219,7 @@ def tail():
     visualizza il contenuto del file csv mentre viene popolato
     :return:
     """
-    code = d.msgbox(text='writing data to {}'.format(file_name))
+    code = d.msgbox(text='scrivendo i dati su: {}\nPremere ok per terminare '.format(file_name))
     if code:
         start_stop_record()
 
@@ -234,6 +236,7 @@ def logout():
         db['folder'] = last_folder
         db['description'] = last_description
 
+    os.system('clear')
     return exit(0)
 
 
@@ -250,6 +253,8 @@ def start_load():
         sampling_rate_value = db['rate']
 
     update_sampling_rate()  # chiamare dopo aver caricato il valore
+
+    update_strumenti()  # permette di eseguire subito una nuova misura
 
     with open('instruments.csv', mode='r') as file:
         for line in file:
