@@ -1,4 +1,9 @@
 strumento,unità di misura,precisione,produttore,descrizione,numero seriale
 fotoresistenza,nd,nd,nd,nd,nd
 encoder,rpm,nd,privato,qei mbed,nd
-giroscopi,m/s^2,nd,nd,nd,nd
+giroscopio,m/s^2,nd,nd,nd,nd
+termometro,°C,nd,brahma,datasheet?,nd
+prossimità,cm,nd,st,datsheet?,nd
+microfono,Bell,nd,nd,per vibrazioni,nd
+amperometro,A,nd,nd,portata motori,nd
+voltmetro,V,nd,nd,stato batterie,nd

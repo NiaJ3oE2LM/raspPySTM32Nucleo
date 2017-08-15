@@ -1,41 +1,36 @@
-# RASPINUCLEO
-0. sampling rate
-1. seleziona strumenti
-2. nuova misura
-
-## sampling rate
-numero di misura per secondo.
-attuale = 10. Nuovo = 
-
-## seleziona strumenti
-scrivere gli indici degli strumenti da registrare separati da uno spazio
-a tutti
-0 str1
-1 str2
-...
-
-## nuova misura
-strumenti selezionati:
-str1, str2, str5 ...
-filename.csv creato
-0 annulla
-1 inizia registrazione
-...
-sampling...
-...
-filename.csv salvato
-
-
-
-"""SCHEMA NUCLEO
-1 volta user button: continua mandare la stringa con tutti i sensori nell'ordine in cui poi manderà i dati
-LED BLINK, si ferma quando riceve la risposta '1' dalla funzione init_csv()
-
-2 volta user button, LED FISSO: legge i sensori manda tutti i dati alla rasp
-"""
-
+# futuro
+implememtare freeRtos con time scheduling per creare un customm DAQ. nel frattempo utilizza un basso samplerate senz ausare FreeRTOS
 
 # TODOS
-+ utility py
-+  
+- leggere paper openlabs
+
+
+## utility --> rapiNucleo
++ zero sensor
++ live sensor reading
++ initialize sensors from terminal and setu nucleo
+
+## sensori 
++ amperometro
++ encoder
++ prossimità mbed
++ voltmetro
++ temperatura
++ microfono
++ 
+
+## DAQ
++ come fare a misurare tot digital pin nello STESSO ISTANTE	
++ è davverp necessario usare la nucleo?
+SI perchè i pin del rasp sono tutti digitali
++ implementare sistema BAUD_RATE timers via USB, accontentati di un basso sample rate 
++ non usare free RTOS prima di essere arrivato al limite con la libreria timer 
+
+# calculations
++ usando 5 sensori e considerato che Analog.read ritorna un uint16_t (16 bit). aprendo una Serial baud = 921600 bits/s, puoi ottenere --> baud/(5*16) = 11520 samples/s
+
+per implementare questa soluzione, dovresti leggere continuamente la seriale, memeorizzare la lunghezza del segnale di ciascun strumenti oltre aLL'ORDINE in cui arrivano e tenere sincronizzata la comunicazione.
+
+# results
+- ottenuto sampling rate 5kHz senza rtos
 

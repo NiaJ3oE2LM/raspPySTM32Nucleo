@@ -22,14 +22,14 @@ todo, inviare info si sensori per avere i dati con la precisione strumenti
 class menu_item:
 
     def __init__(self, name, info, opts={}):
-        self.name =  name
+        self.name = name
         self.info = info
         self.opts = opts
 
 # todo fare una classe strumento
 
 # GLOBAL VARIABLES
-sampling_rate_value = 1
+sampling_Hz = 1000  # period_us microseconds nucleo timer
 mem_index = []
 available_instruments = []
 instruments_db = []
@@ -38,7 +38,7 @@ file_name, last_description, last_folder = "", '', ''
 
 # sampling rate  menu
 sampling_rate = menu_item(name='sampling rate',
-                          info="numero di misure per secondo.")
+                          info="frequenza di campionamento in Hz")
 # seleziona strumenti menu
 seleziona_strumenti = menu_item(name='seleziona strumenti',
                                 info="spostare a destra gli strumenti da utilizzare. viene mostrata la configurazione attuale",
@@ -60,11 +60,11 @@ def sampling_rate_run(self):
     """
 
     # todo aggiornare il parametro via serial sulla nucleo
-    global sampling_rate_value
+    global sampling_Hz
     code, ans_str = d.inputbox(title=self.name,
-                               text=self.info+"\nattuale: {}.\tNuovo:".format(sampling_rate_value))
+                               text=self.info+"\nattuale: {}.\tNuovo:".format(sampling_Hz))
     if code == d.OK and ans_str:
-        sampling_rate_value = int(ans_str)
+        sampling_Hz = int(ans_str)
         update_sampling_rate()
 
 
@@ -110,7 +110,7 @@ def nuova_misura_run(self):
     strumenti_str = ', '.join(available_instruments[i] for i in mem_index)
 
     code, ans_list = d.form(title=self.name,
-                            text=(self.info+'\nSampling_rate:'+str(sampling_rate_value)+'\nStrumenti:'+strumenti_str),
+                            text=(self.info + '\nSampling_rate:' + str(sampling_Hz) + '\nStrumenti:' + strumenti_str),
                             elements=element_list)
     if code == d.CANCEL:
         return menu()
@@ -133,11 +133,11 @@ def nuova_misura_run(self):
             folder = 'data/' + folder
             os.mkdir(folder)
 
-        # crea il file csv e stampa intestazione [1]
+        # crea il file csv e stampa intestazione [1]x
         file_name = '{}/{}.csv'.format(folder, filename)
         with open(file_name, mode='w') as file:
             print(descr, file=file)
-            print('sample rate:' + str(sampling_rate_value), file=file)
+            print('sample rate:' + str(sampling_Hz), file=file)
             print(strumenti_str, file=file)
 
         return record()
@@ -177,39 +177,43 @@ def update_strumenti():
     :return:
     """
     global available_instruments
-
     # start instrument mode with 'i'
     write('i')
-    available_instruments = read(ser)
+    available_instruments = read()
 
 
 def update_sampling_rate():
-    """ comunica alla nucleo il valore di sampling_rate_value"""
-    str_LF = str(sampling_rate_value)+'\n'
-    ser.write(str_LF.encode('utf-8'))
+    """Comunica alla Nucleo il nuovo PERIODO di campionamento in
+
+    nuovo periodo = 1000000[us]/f[Hz]
+    """
+    str_LF = str(1000000 // sampling_Hz)
+    write(str_LF)
+    pass
 
 
-def start_stop_record():
-    """send 'r' to nucleo and nucleo should stop sending data"""
+def toggle_record():
+    """send 'r' to nucleo and nucleo should stop sending data if
+    sendong, shoud start if not sending
+    """
     write('r')
+    pass
 
 
 def record():
     """avvia la registrazione sulla nucleo esalva i valori sul file csv
     :return:
     """
-    start_stop_record()
+    toggle_record()
     threading.Thread(target=tail).start()
-
-    while True:
-        in_data = read(ser)  # non c'è bisogno di convertire in float o int
-        # se timeout viene ritornata una lista vuota, quindi esci
-        if not in_data:
-            break
-
-        sel_data = (in_data[i] for i in mem_index)  # seleziona solo quelli da memorizzare
-        with open(file_name, mode='a') as file:
-            print(','.join(sel_data), file=file)
+    with open(file_name, mode='a') as file:
+        in_str = read()
+        while in_str:  # in_str list vuota se non c'è nulla
+            # todo la nucleo deve spedire in seriale solo quello chel'utente vuole! altrimenti perdi velocità
+            # todo togliere mem_index dall'algoritmo
+            in_str = read()
+            print(in_str, file=file)
+            in_str = ser.readline()
 
     d.infobox(title='WARNING',
               text='recording has stopped')
@@ -223,7 +227,7 @@ def tail():
     """
     code = d.msgbox(text='scrivendo i dati su: {}\nPremere ok per terminare '.format(file_name))
     if code:
-        start_stop_record()
+        toggle_record()
 
 
 def logout():
@@ -234,7 +238,7 @@ def logout():
 
     with shelve.open('last_session', flag='w') as db:
         db['index'] = mem_index
-        db['rate'] = sampling_rate_value
+        db['rate'] = sampling_Hz
         db['folder'] = last_folder
         db['description'] = last_description
 
@@ -243,50 +247,52 @@ def logout():
 
 
 def start_load():
-    """
-    carica le variabili utente dal database e gli strumenti dal file instruments.csv
+    """carica le variabili utente dal database e gli strumenti dal file instruments.csv
+
     :return:
     """
-    global last_description, last_folder, mem_index, sampling_rate_value
+    global last_description, last_folder, mem_index, sampling_Hz
     with shelve.open('last_session', flag='r') as db:
         mem_index = db['index']
         last_folder = db['folder']
         last_description = db['description']
-        sampling_rate_value = db['rate']
+        sampling_Hz = db['rate']
 
     update_sampling_rate()  # chiamare dopo aver caricato il valore
 
     update_strumenti()  # permette di eseguire subito una nuova misura
-
+    print(available_instruments)
     with open('instruments.csv', mode='r') as file:
         for line in file:
             instruments_db.append(line.split(','))
 
+    pass
+
 
 def write(string):
-    """scrive il valore in seriale aggiunggendo \n correttamente"""
+    """aggiunge LF a string e converte in binario, quindi scrive in ser"""
     if ser.writable():
-        string += '\n'
-        ser.write(string.encode('utf-8'))
+        # TODO capire perchè succede questa cazzata!
+        string = string[:1] + ' ' + string[1:] + '\n'
+
+        ser.flushOutput()
+        ser.write(bytearray(string, 'utf-8'))
+        # print('sent: ', string.encode('utf-8'))
     else:
         print('ser not writable')
 
+    pass
 
-def read(nucleo_serial):
+
+def read():
     """read serial and return string array
     
-    :param nucleo_serial: serial object Nucleo
+    :param ser: serial object Nucleo
     :return: empty array in serial is not readable
     """
-    if nucleo_serial.readable():
-        nucleo_serial.flushInput()
-        data_list = str(ser.readline()).strip("b'").split()  # cancellare lettere di conversione da byte a str
-        if data_list:
-            data_list.pop()                                      # l'ultimo elemnto è \n
-        # print(data_list)                                     # log
-        return data_list
-    else:
-        return []
+    ser.reset_input_buffer()
+    data_list = str(ser.readline()).strip("b' \\n").split()  # cancellare lettere di conversione da byte a str
+    return data_list
 
 
 """ AVVIO SERIALE NUCLEO
@@ -299,7 +305,7 @@ except:
     print("nucleo è connessa?")
     exit(0)
 
-ser = serial.Serial(port=nucleo_port, baudrate=115200, timeout=2)
+ser = serial.Serial(port=nucleo_port, baudrate=921600, timeout=2, write_timeout=2)
 d = dialog.Dialog(autowidgetsize=True)
 
 if __name__ == '__main__':
