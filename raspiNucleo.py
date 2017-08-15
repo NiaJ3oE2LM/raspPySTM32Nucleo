@@ -21,10 +21,10 @@ todo, inviare info si sensori per avere i dati con la precisione strumenti
 
 class menu_item:
 
-    def __init__(self, name, info, opts={}):
+    def __init__(self, name, info):
         self.name = name
         self.info = info
-        self.opts = opts
+
 
 # todo fare una classe strumento
 
@@ -35,20 +35,27 @@ available_instruments = []
 instruments_db = []
 file_name, last_description, last_folder = "", '', ''
 
-
+"""STRUTTURA MENU INIZIALE """
 # sampling rate  menu
 sampling_rate = menu_item(name='sampling rate',
                           info="frequenza di campionamento in Hz")
 # seleziona strumenti menu
 seleziona_strumenti = menu_item(name='seleziona strumenti',
-                                info="spostare a destra gli strumenti da utilizzare. viene mostrata la configurazione attuale",
-                                opts={'u': 'annulla', 'a': 'tutti'})
+                                info="spostare a destra gli strumenti da utilizzare. viene mostrata la configurazione attuale")
+# imposta strumenti menu
+imposta_strumenti = menu_item(name='imposta strumenti',
+                              info="impostare pin e tipo di strumento")
+
 # nuova misura
 nuova_misura = menu_item(name='nuova misura',
-                         info='premere ok per iniziare la registrazione',
-                         opts={'u': 'annulla', 's': 'inizia registrazione'})
+                         info='premere ok per iniziare la registrazione')
 
-esci = menu_item(name='esci', info='')
+app = {
+    '1': sampling_rate,
+    '#': imposta_strumenti,
+    '2': seleziona_strumenti,
+    '3': nuova_misura
+}
 
 
 def sampling_rate_run(self):
@@ -58,7 +65,6 @@ def sampling_rate_run(self):
     :param self:
     :return:
     """
-
     # todo aggiornare il parametro via serial sulla nucleo
     global sampling_Hz
     code, ans_str = d.inputbox(title=self.name,
@@ -146,12 +152,6 @@ def nuova_misura_run(self):
 sampling_rate.run = types.MethodType(sampling_rate_run, sampling_rate)
 seleziona_strumenti.run = types.MethodType(seleziona_strumenti_run, seleziona_strumenti)
 nuova_misura.run = types.MethodType(nuova_misura_run, nuova_misura)
-
-app = {
-    '1': sampling_rate,
-    '2': seleziona_strumenti,
-    '3': nuova_misura
-}
 
 
 def menu():
